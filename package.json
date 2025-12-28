@@ -1,0 +1,28 @@
+{
+  "name": "footiplanung",
+  "version": "1.0.0",
+  "description": "Football Team Training Planning Web Application",
+  "main": "server/index.js",
+  "scripts": {
+    "server": "node server/index.js",
+    "client": "cd client && npm start",
+    "dev": "npm run server",
+    "start": "npm run server"
+  },
+  "keywords": [
+    "football",
+    "training",
+    "planning",
+    "meso",
+    "micro"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^2.2.1",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "sqlite3": "^5.1.7"
+  }
+}
