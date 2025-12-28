@@ -19,7 +19,8 @@ function MesoPlans() {
     weeks: 4,
     focus: 'Kondition',
     position: 'Alle',
-    planType: 'general' // 'general' or 'position'
+    planType: 'general', // 'general' or 'position'
+    methodology: 'bompa' // 'bompa' or 'verheijen'
   });
   const [generating, setGenerating] = useState(false);
 
@@ -103,7 +104,8 @@ function MesoPlans() {
       weeks: 4,
       focus: 'Kondition',
       position: 'Alle',
-      planType: 'general'
+      planType: 'general',
+      methodology: 'bompa'
     });
     setShowGenerateModal(true);
   };
@@ -255,10 +257,29 @@ function MesoPlans() {
             <h3>✨ Trainingsplan automatisch generieren</h3>
             <p style={{ color: '#666', marginBottom: '1.5rem' }}>
               Generieren Sie einen <strong>wissenschaftlich fundierten</strong> Trainingsplan 
-              basierend auf <strong>Periodisierungsprinzipien</strong> (Progressive Overload, 
-              Superkompensation). Wählen Sie zwischen allgemeinem oder <strong>positionsspezifischem</strong> Training.
+              basierend auf <strong>Periodisierungsprinzipien</strong>. Wählen Sie zwischen 
+              klassischer Periodisierung oder <strong>niederländischer Verheijen-Methode</strong> mit Spielformen und Varianten.
             </p>
             <form onSubmit={handleGenerate}>
+              <div className="form-group">
+                <label>Trainingsmethodik *</label>
+                <select
+                  value={generateData.methodology}
+                  onChange={(e) => setGenerateData({ ...generateData, methodology: e.target.value })}
+                  required
+                  style={{ fontWeight: 'bold', fontSize: '1rem' }}
+                >
+                  <option value="bompa">📊 Bompa & Haff - Klassische Periodisierung</option>
+                  <option value="verheijen">🇳🇱 Raymond Verheijen - Niederländische Methode (Spielformen + Varianten)</option>
+                </select>
+                <small style={{ color: '#666', display: 'block', marginTop: '0.5rem' }}>
+                  {generateData.methodology === 'verheijen' 
+                    ? '⚽ Verheijen: Alle Übungen als fußballspezifische Spielformen, jede Einheit mit 3-4 Varianten'
+                    : '📈 Bompa & Haff: Progressive Belastungssteigerung, Superkompensation'
+                  }
+                </small>
+              </div>
+
               <div className="form-group">
                 <label>Planungsart *</label>
                 <select
@@ -272,9 +293,9 @@ function MesoPlans() {
                 </select>
               </div>
 
-              {generateData.planType === 'position' ? (
+              {generateData.planType === 'position' || generateData.methodology === 'verheijen' ? (
                 <div className="form-group">
-                  <label>Position *</label>
+                  <label>Position * {generateData.methodology === 'verheijen' && '(erforderlich für Verheijen)'}</label>
                   <select
                     value={generateData.position}
                     onChange={(e) => setGenerateData({ ...generateData, position: e.target.value })}
@@ -287,10 +308,13 @@ function MesoPlans() {
                     <option value="Sturm">⚡ Sturm - Torschuss, Laufwege, Explosivkraft</option>
                   </select>
                   <small style={{ color: '#666', display: 'block', marginTop: '0.25rem' }}>
-                    Jede Position erhält spezifische Technik-, Taktik- und Athletikeinheiten
+                    {generateData.methodology === 'verheijen' 
+                      ? 'Verheijen: Spielformen (z.B. 8v8, 7v7) mit positions-spezifischen Schwerpunkten und Varianten'
+                      : 'Jede Position erhält spezifische Technik-, Taktik- und Athletikeinheiten'
+                    }
                   </small>
                 </div>
-              ) : (
+              ) : generateData.methodology !== 'verheijen' ? (
                 <div className="form-group">
                   <label>Trainingsschwerpunkt *</label>
                   <select
@@ -306,7 +330,7 @@ function MesoPlans() {
                     <option value="Wettkampfvorbereitung">Wettkampfvorbereitung - Spielformen</option>
                   </select>
                 </div>
-              )}
+              ) : null}
 
               <div className="form-group">
                 <label>Startdatum *</label>
@@ -342,21 +366,34 @@ function MesoPlans() {
               </div>
 
               <div style={{ 
-                background: '#f0f8ff', 
-                border: '1px solid #1e3c72', 
+                background: generateData.methodology === 'verheijen' ? '#fff8e6' : '#f0f8ff', 
+                border: `1px solid ${generateData.methodology === 'verheijen' ? '#ff9800' : '#1e3c72'}`, 
                 borderRadius: '4px', 
                 padding: '1rem', 
                 marginBottom: '1rem' 
               }}>
-                <strong>🔬 Wissenschaftliche Grundlagen</strong>
+                <strong>{generateData.methodology === 'verheijen' ? '🇳🇱 Verheijen-Methodik' : '🔬 Wissenschaftliche Grundlagen'}</strong>
                 <ul style={{ marginTop: '0.5rem', marginBottom: 0, paddingLeft: '1.5rem', fontSize: '0.9rem' }}>
-                  <li><strong>Periodisierung:</strong> {generateData.weeks >= 4 ? 'Belastungs-/Regenerationswochen im 3:1 Verhältnis' : 'Strukturierte Belastungssteigerung'}</li>
-                  <li><strong>Progressive Overload:</strong> Aufbau → Entwicklung → Intensivierung</li>
-                  <li><strong>Superkompensation:</strong> Gezielte Regenerationsphasen für optimale Anpassung</li>
-                  <li><strong>{generateData.weeks * 3} Trainingseinheiten</strong> (Mo/Mi/Fr) {generateData.planType === 'position' ? `für ${generateData.position}` : `fokussiert auf ${generateData.focus}`}</li>
-                  <li><strong>Variabilität:</strong> Unterschiedliche Trainingsformen und Intensitäten</li>
-                  {generateData.planType === 'position' && generateData.position !== 'Alle' && (
-                    <li><strong>Positionsspezifisch:</strong> Technik, Taktik und Athletik für {generateData.position}</li>
+                  {generateData.methodology === 'verheijen' ? (
+                    <>
+                      <li><strong>Fußballspezifität:</strong> Alle Übungen als Spielformen (z.B. 8v8, 7v7, 6v6)</li>
+                      <li><strong>Varianten:</strong> Jede Trainingseinheit mit 3-4 unterschiedlichen Varianten</li>
+                      <li><strong>Taktische Periodisierung:</strong> Skill Acquisition → Team Tactics → Match Prep</li>
+                      <li><strong>{generateData.weeks * 3} Spielformen</strong> (Mo/Mi/Fr) für {generateData.position || 'alle Positionen'}</li>
+                      <li><strong>Keine isolierten Übungen:</strong> Training immer im Fußball-Kontext</li>
+                      <li><strong>Beispiele:</strong> Positionsspiel mit Jokern, Überzahl-Situationen, Gegenpressing-Formen</li>
+                    </>
+                  ) : (
+                    <>
+                      <li><strong>Periodisierung:</strong> {generateData.weeks >= 4 ? 'Belastungs-/Regenerationswochen im 3:1 Verhältnis' : 'Strukturierte Belastungssteigerung'}</li>
+                      <li><strong>Progressive Overload:</strong> Aufbau → Entwicklung → Intensivierung</li>
+                      <li><strong>Superkompensation:</strong> Gezielte Regenerationsphasen für optimale Anpassung</li>
+                      <li><strong>{generateData.weeks * 3} Trainingseinheiten</strong> (Mo/Mi/Fr) {generateData.planType === 'position' || generateData.methodology === 'verheijen' ? `für ${generateData.position}` : `fokussiert auf ${generateData.focus}`}</li>
+                      <li><strong>Variabilität:</strong> Unterschiedliche Trainingsformen und Intensitäten</li>
+                      {generateData.planType === 'position' && generateData.position !== 'Alle' && (
+                        <li><strong>Positionsspezifisch:</strong> Technik, Taktik und Athletik für {generateData.position}</li>
+                      )}
+                    </>
                   )}
                 </ul>
               </div>
