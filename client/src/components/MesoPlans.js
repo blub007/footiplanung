@@ -5,6 +5,7 @@ import { API_URL } from '../config';
 function MesoPlans() {
   const [mesoPlans, setMesoPlans] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -13,6 +14,12 @@ function MesoPlans() {
     focus: '',
     description: ''
   });
+  const [generateData, setGenerateData] = useState({
+    start_date: '',
+    weeks: 4,
+    focus: 'Kondition'
+  });
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     loadMesoPlans();
@@ -81,6 +88,42 @@ function MesoPlans() {
     setEditingPlan(null);
   };
 
+  const openGenerateModal = () => {
+    // Set default start date to next Monday
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() + daysUntilMonday);
+    
+    setGenerateData({
+      start_date: nextMonday.toISOString().split('T')[0],
+      weeks: 4,
+      focus: 'Kondition'
+    });
+    setShowGenerateModal(true);
+  };
+
+  const closeGenerateModal = () => {
+    setShowGenerateModal(false);
+    setGenerating(false);
+  };
+
+  const handleGenerate = async (e) => {
+    e.preventDefault();
+    setGenerating(true);
+    try {
+      const response = await axios.post(`${API_URL}/generate-plan`, generateData);
+      alert(`✅ ${response.data.message}`);
+      loadMesoPlans();
+      closeGenerateModal();
+    } catch (error) {
+      console.error('Error generating plan:', error);
+      alert('❌ Fehler beim Generieren des Trainingsplans');
+      setGenerating(false);
+    }
+  };
+
   const getDurationWeeks = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -93,9 +136,14 @@ function MesoPlans() {
     <div>
       <div className="section-header">
         <h2>Mesoplanung (Mittelfristige Planung)</h2>
-        <button className="btn btn-primary" onClick={() => openModal()}>
-          + Neuer Mesoplan
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-success" onClick={openGenerateModal}>
+            ✨ Trainingsplan automatisch generieren
+          </button>
+          <button className="btn btn-primary" onClick={() => openModal()}>
+            + Neuer Mesoplan
+          </button>
+        </div>
       </div>
 
       <p style={{ marginBottom: '1.5rem', color: '#666' }}>
@@ -190,6 +238,92 @@ function MesoPlans() {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   {editingPlan ? 'Aktualisieren' : 'Erstellen'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showGenerateModal && (
+        <div className="modal-overlay" onClick={closeGenerateModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>✨ Trainingsplan automatisch generieren</h3>
+            <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+              Generieren Sie einen <strong>wissenschaftlich fundierten</strong> Trainingsplan 
+              basierend auf <strong>Periodisierungsprinzipien</strong> (Progressive Overload, 
+              Superkompensation). Der Plan enthält strukturierte Belastungs- und Regenerationswochen 
+              mit fokussierten Trainingseinheiten.
+            </p>
+            <form onSubmit={handleGenerate}>
+              <div className="form-group">
+                <label>Startdatum *</label>
+                <input
+                  type="date"
+                  value={generateData.start_date}
+                  onChange={(e) => setGenerateData({ ...generateData, start_date: e.target.value })}
+                  required
+                />
+                <small style={{ color: '#666', display: 'block', marginTop: '0.25rem' }}>
+                  Standard: Nächster Montag
+                </small>
+              </div>
+              <div className="form-group">
+                <label>Dauer (Wochen) *</label>
+                <select
+                  value={generateData.weeks}
+                  onChange={(e) => setGenerateData({ ...generateData, weeks: parseInt(e.target.value) })}
+                  required
+                >
+                  <option value="2">2 Wochen</option>
+                  <option value="3">3 Wochen</option>
+                  <option value="4">4 Wochen (Standard)</option>
+                  <option value="5">5 Wochen</option>
+                  <option value="6">6 Wochen</option>
+                  <option value="8">8 Wochen</option>
+                  <option value="12">12 Wochen</option>
+                </select>
+                <small style={{ color: '#666', display: 'block', marginTop: '0.25rem' }}>
+                  Es werden {generateData.weeks * 3} Trainingseinheiten generiert (3 pro Woche: Mo, Mi, Fr)
+                </small>
+              </div>
+              <div className="form-group">
+                <label>Trainingsschwerpunkt *</label>
+                <select
+                  value={generateData.focus}
+                  onChange={(e) => setGenerateData({ ...generateData, focus: e.target.value })}
+                  required
+                >
+                  <option value="Kondition">Kondition - Ausdauer und Fitness</option>
+                  <option value="Technik">Technik - Ballkontrolle und Fertigkeiten</option>
+                  <option value="Taktik">Taktik - Spielaufbau und Positionsspiel</option>
+                  <option value="Kraft">Kraft - Athletik und Stabilität</option>
+                  <option value="Schnelligkeit">Schnelligkeit - Sprint und Agilität</option>
+                  <option value="Wettkampfvorbereitung">Wettkampfvorbereitung - Spielformen</option>
+                </select>
+              </div>
+              <div style={{ 
+                background: '#f0f8ff', 
+                border: '1px solid #1e3c72', 
+                borderRadius: '4px', 
+                padding: '1rem', 
+                marginBottom: '1rem' 
+              }}>
+                <strong>🔬 Wissenschaftliche Grundlagen</strong>
+                <ul style={{ marginTop: '0.5rem', marginBottom: 0, paddingLeft: '1.5rem', fontSize: '0.9rem' }}>
+                  <li><strong>Periodisierung:</strong> {generateData.weeks >= 4 ? 'Belastungs-/Regenerationswochen im 3:1 Verhältnis' : 'Strukturierte Belastungssteigerung'}</li>
+                  <li><strong>Progressive Overload:</strong> Aufbau → Entwicklung → Intensivierung</li>
+                  <li><strong>Superkompensation:</strong> Gezielte Regenerationsphasen für optimale Anpassung</li>
+                  <li><strong>{generateData.weeks * 3} Trainingseinheiten</strong> (Mo/Mi/Fr) fokussiert auf {generateData.focus}</li>
+                  <li><strong>Variabilität:</strong> Unterschiedliche Trainingsformen und Intensitäten</li>
+                </ul>
+              </div>
+              <div className="form-actions">
+                <button type="button" className="btn btn-secondary" onClick={closeGenerateModal} disabled={generating}>
+                  Abbrechen
+                </button>
+                <button type="submit" className="btn btn-success" disabled={generating}>
+                  {generating ? '⏳ Generiere...' : '✨ Trainingsplan generieren'}
                 </button>
               </div>
             </form>

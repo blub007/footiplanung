@@ -395,7 +395,7 @@ app.delete('/api/events/:id', (req, res) => {
 
 // ===== AUTO-GENERATION ROUTES =====
 
-// Generate scientifically sound training plan (meso + micro) based on periodization principles
+// Generate complete training plan (meso + micro)
 app.post('/api/generate-plan', (req, res) => {
   const { start_date, weeks, focus } = req.body;
   
@@ -409,16 +409,20 @@ app.post('/api/generate-plan', (req, res) => {
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + (weeks * 7));
 
-  // Define training plan based on scientific focus area
+  // Define training plan templates based on focus
   const focusAreas = focus || 'Kondition';
-  const mesoName = `${focusAreas}-Mesozyklus ${startDate.toLocaleDateString('de-DE')}`;
+  const mesoName = `${focusAreas} Phase - ${startDate.toLocaleDateString('de-DE')}`;
   
-  // Create meso plan with scientific description
-  const description = `Periodisierter ${weeks}-Wochen Mesozyklus nach trainingswissenschaftlichen Prinzipien: Progressive Belastungssteigerung, systematische Regenerationsphasen (Superkompensation), fokussierte ${focusAreas}-Entwicklung. Basiert auf Periodisierungsmodellen nach Bompa & Haff.`;
-  
+  // Create meso plan
   db.run(
     'INSERT INTO meso_plans (name, start_date, end_date, focus, description) VALUES (?, ?, ?, ?, ?)',
-    [mesoName, start_date, endDate.toISOString().split('T')[0], focusAreas, description],
+    [
+      mesoName,
+      start_date,
+      endDate.toISOString().split('T')[0],
+      focusAreas,
+      `Automatisch generierter ${weeks}-Wochen Trainingsplan mit Schwerpunkt ${focusAreas}`
+    ],
     function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -427,18 +431,90 @@ app.post('/api/generate-plan', (req, res) => {
 
       const mesoPlanId = this.lastID;
       
-      // Generate scientifically structured micro plans
-      generateScientificTrainingPlan(mesoPlanId, startDate, weeks, focusAreas, db)
-        .then(result => {
+      // Generate micro plans (training sessions)
+      const microPlans = [];
+      const sessionTypes = [
+        { type: 'Techniktraining', focus: 'Ballkontrolle und Passen', duration: 90, intensity: 'Mittel' },
+        { type: 'Taktiktraining', focus: 'Spielaufbau und Positionsspiel', duration: 90, intensity: 'Mittel' },
+        { type: 'Konditionstraining', focus: 'Ausdauer und Schnelligkeit', duration: 75, intensity: 'Hoch' },
+        { type: 'Spieltraining', focus: 'Spielformen und Wettkampf', duration: 90, intensity: 'Hoch' },
+        { type: 'Techniktraining', focus: 'Torschuss und Flanken', duration: 90, intensity: 'Mittel' },
+        { type: 'Regeneration', focus: 'Aktive Erholung', duration: 60, intensity: 'Niedrig' }
+      ];
+
+      // Adjust sessions based on focus
+      if (focusAreas === 'Kondition') {
+        sessionTypes[2].intensity = 'Sehr Hoch';
+        sessionTypes[3].focus = 'Intensive Spielformen';
+      } else if (focusAreas === 'Technik') {
+        sessionTypes[0].duration = 105;
+        sessionTypes[4].duration = 105;
+      } else if (focusAreas === 'Taktik') {
+        sessionTypes[1].duration = 105;
+        sessionTypes[3].focus = 'Taktische Spielformen';
+      }
+
+      let sessionIndex = 0;
+      let insertedSessions = 0;
+      const totalSessions = weeks * 3; // 3 sessions per week
+
+      // Generate sessions for each week
+      for (let week = 0; week < weeks; week++) {
+        // Monday session
+        const monday = new Date(startDate);
+        monday.setDate(monday.getDate() + (week * 7));
+        const session1 = sessionTypes[sessionIndex % sessionTypes.length];
+        
+        microPlans.push({
+          date: monday.toISOString().split('T')[0],
+          ...session1
+        });
+
+        // Wednesday session
+        const wednesday = new Date(monday);
+        wednesday.setDate(wednesday.getDate() + 2);
+        sessionIndex++;
+        const session2 = sessionTypes[sessionIndex % sessionTypes.length];
+        
+        microPlans.push({
+          date: wednesday.toISOString().split('T')[0],
+          ...session2
+        });
+
+        // Friday session
+        const friday = new Date(monday);
+        friday.setDate(friday.getDate() + 4);
+        sessionIndex++;
+        const session3 = sessionTypes[sessionIndex % sessionTypes.length];
+        
+        microPlans.push({
+          date: friday.toISOString().split('T')[0],
+          ...session3
+        });
+        
+        sessionIndex++;
+      }
+
+      // Insert all micro plans
+      const insertPromises = microPlans.map(plan => {
+        return new Promise((resolve, reject) => {
+          db.run(
+            'INSERT INTO micro_plans (meso_plan_id, date, session_type, focus, duration, intensity, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [mesoPlanId, plan.date, plan.type, plan.focus, plan.duration, plan.intensity, `Teil des ${focusAreas}-Trainingszyklus`],
+            function(err) {
+              if (err) reject(err);
+              else resolve(this.lastID);
+            }
+          );
+        });
+      });
+
+      Promise.all(insertPromises)
+        .then(ids => {
           res.json({
             meso_plan_id: mesoPlanId,
-            ...result,
-            details: {
-              periodization: 'Progressives Belastungsmodell mit Regenerationswochen',
-              load_recovery_ratio: `${result.load_weeks}:${result.recovery_weeks}`,
-              focus: focusAreas,
-              scientific_base: 'Trainingsprinzipien: Progressive Overload, Supercompensation, Specificity, Variation'
-            }
+            micro_plan_ids: ids,
+            message: `Erfolgreich ${microPlans.length} Trainingseinheiten für ${weeks} Wochen generiert`
           });
         })
         .catch(err => {
