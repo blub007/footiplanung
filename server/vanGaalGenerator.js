@@ -77,7 +77,7 @@ ${gamePhases.ballbesitz.principles.map(p => `  • ${p}`).join('\n')}
 ⚽ Spielform 2: 9v9 Aufbauspiel (25 Min)
 - Aufbau aus dem eigenen Drittel mit Gegenpressing
 - 3 Zonen: Defensiv → Mittel → Offensiv
-- Schwerpunkt: Ballzirkulation und geduld
+- Schwerpunkt: Ballzirkulation und Geduld
 - Variante: Pass in Offensivzone = 3 Punkte
 
 ⚽ Spielform 3: 11v11 Positionsspiel (20 Min)
@@ -302,6 +302,12 @@ ${gamePhases.umschaltung_defensiv.principles.map(p => `  • ${p}`).join('\n')}
     const phaseIndex = (weekInCycle - 1) % offensivePhases.length;
     return sessions.offensive[offensivePhases[phaseIndex]];
   }
+  
+  // Fallback to repetition if no match
+  const phaseKeys = Object.keys(sessions.repetition);
+  const phaseIndex = (weekInCycle - 1) % phaseKeys.length;
+  const phaseKey = phaseKeys[phaseIndex];
+  return sessions.repetition[phaseKey];
 }
 
 function generateVanGaalPlan(startDate, weeks, trainingDays = ['Dienstag', 'Donnerstag', 'Freitag']) {
