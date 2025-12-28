@@ -310,7 +310,7 @@ function parseMacroText(text) {
       // This is a phases line
       const phases = line.match(/S\d\+\d/)?.[0] || 'S1+2';
       const nextLine = lines[i + 1];
-      const principles = nextLine && nextLine.match(/P\d+(?:\+P?\d+)*/)?.[0] || '';
+      const principles = nextLine && nextLine.match(/P\d+(?:\+P\d+)*/)?.[0] || '';
       
       currentWeeks.push({
         week: currentWeeks.length + 1,
@@ -318,7 +318,10 @@ function parseMacroText(text) {
         principles: principles
       });
       
-      i++; // Skip next line (principles) as we already processed it
+      // Skip next line if it contains principles
+      if (nextLine && /P\d+/.test(nextLine)) {
+        i++;
+      }
     }
   }
   
