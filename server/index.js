@@ -6,6 +6,7 @@ const db = require('./database');
 const { generateScientificTrainingPlan } = require('./scientificPlanGenerator');
 const { generatePositionSpecificPlan } = require('./positionSpecificGenerator');
 const { generateVerheijenPlan } = require('./verheijenGenerator');
+const { generateVanGaalPlan } = require('./vanGaalGenerator');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -399,7 +400,7 @@ app.delete('/api/events/:id', (req, res) => {
 
 // Generate scientifically sound training plan (meso + micro) based on periodization principles
 app.post('/api/generate-plan', (req, res) => {
-  const { start_date, weeks, focus, position, methodology } = req.body;
+  const { start_date, weeks, focus, position, methodology, training_days } = req.body;
   
   if (!start_date || !weeks) {
     res.status(400).json({ error: 'start_date and weeks are required' });
@@ -413,8 +414,62 @@ app.post('/api/generate-plan', (req, res) => {
 
   // Determine methodology and type
   const useVerheijen = methodology === 'verheijen';
+  const useVanGaal = methodology === 'vangaal';
   const isPositionSpecific = position && position !== 'Alle';
   const planType = isPositionSpecific ? position : (focus || 'Kondition');
+  
+  // Handle Van Gaal methodology separately (doesn't use database insertion in same way)
+  if (useVanGaal) {
+    const trainingDays = training_days || ['Dienstag', 'Donnerstag', 'Freitag'];
+    const vanGaalPlan = generateVanGaalPlan(start_date, weeks, trainingDays);
+    
+    db.run(
+      'INSERT INTO meso_plans (name, start_date, end_date, focus, description) VALUES (?, ?, ?, ?, ?)',
+      [vanGaalPlan.mesoName, vanGaalPlan.startDate, vanGaalPlan.endDate, vanGaalPlan.focus, vanGaalPlan.description],
+      function(err) {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        
+        const mesoPlanId = this.lastID;
+        
+        // Insert all micro plans
+        const insertPromises = vanGaalPlan.microPlans.map(microPlan => {
+          return new Promise((resolve, reject) => {
+            db.run(
+              'INSERT INTO micro_plans (meso_plan_id, date, session_type, description, duration, intensity) VALUES (?, ?, ?, ?, ?, ?)',
+              [mesoPlanId, microPlan.date, microPlan.session_type, microPlan.description, microPlan.duration_minutes, microPlan.intensity],
+              function(err) {
+                if (err) reject(err);
+                else resolve({ id: this.lastID });
+              }
+            );
+          });
+        });
+        
+        Promise.all(insertPromises)
+          .then(() => {
+            res.json({
+              meso_plan_id: mesoPlanId,
+              micro_plans_created: vanGaalPlan.microPlans.length,
+              details: {
+                type: 'Van Gaal Taktiksystem',
+                methodology: 'Louis van Gaal (4 Spielphasen)',
+                periodization: 'Taktische Periodisierung nach Spielphasen',
+                training_days: trainingDays.join(', '),
+                focus: 'Van Gaal Spielphasen',
+                scientific_base: 'Van Gaal: 4 Spielphasen (Ballbesitz, Umschaltung offensiv, Ballverlust, Umschaltung defensiv) mit tagesspezifischen Schwerpunkten'
+              }
+            });
+          })
+          .catch(err => {
+            res.status(500).json({ error: err.message });
+          });
+      }
+    );
+    return;
+  }
   
   const mesoName = useVerheijen
     ? `${position || 'Team'}-Verheijen-Plan ${startDate.toLocaleDateString('de-DE')}`

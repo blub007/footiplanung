@@ -20,7 +20,8 @@ function MesoPlans() {
     focus: 'Kondition',
     position: 'Alle',
     planType: 'general', // 'general' or 'position'
-    methodology: 'bompa' // 'bompa' or 'verheijen'
+    methodology: 'bompa', // 'bompa', 'verheijen', or 'vangaal'
+    training_days: ['Dienstag', 'Donnerstag', 'Freitag'] // Van Gaal customizable training days
   });
   const [generating, setGenerating] = useState(false);
 
@@ -105,7 +106,8 @@ function MesoPlans() {
       focus: 'Kondition',
       position: 'Alle',
       planType: 'general',
-      methodology: 'bompa'
+      methodology: 'bompa',
+      training_days: ['Dienstag', 'Donnerstag', 'Freitag']
     });
     setShowGenerateModal(true);
   };
@@ -258,7 +260,8 @@ function MesoPlans() {
             <p style={{ color: '#666', marginBottom: '1.5rem' }}>
               Generieren Sie einen <strong>wissenschaftlich fundierten</strong> Trainingsplan 
               basierend auf <strong>Periodisierungsprinzipien</strong>. Wählen Sie zwischen 
-              klassischer Periodisierung oder <strong>niederländischer Verheijen-Methode</strong> mit Spielformen und Varianten.
+              klassischer Periodisierung, <strong>niederländischer Verheijen-Methode</strong> mit Spielformen und Varianten,
+              oder <strong>Van Gaal's 4 Spielphasen</strong> mit tagesspezifischen Schwerpunkten.
             </p>
             <form onSubmit={handleGenerate}>
               <div className="form-group">
@@ -271,10 +274,13 @@ function MesoPlans() {
                 >
                   <option value="bompa">📊 Bompa & Haff - Klassische Periodisierung</option>
                   <option value="verheijen">🇳🇱 Raymond Verheijen - Niederländische Methode (Spielformen + Varianten)</option>
+                  <option value="vangaal">⚽ Louis van Gaal - 4 Spielphasen (Taktisches Taktiksystem)</option>
                 </select>
                 <small style={{ color: '#666', display: 'block', marginTop: '0.5rem' }}>
                   {generateData.methodology === 'verheijen' 
                     ? '⚽ Verheijen: Alle Übungen als fußballspezifische Spielformen, jede Einheit mit 3-4 Varianten'
+                    : generateData.methodology === 'vangaal'
+                    ? '🎯 Van Gaal: 4 Spielphasen mit tagesspezifischen Schwerpunkten (Di=Wiederholung, Do=Defensiv, Fr=Offensiv)'
                     : '📈 Bompa & Haff: Progressive Belastungssteigerung, Superkompensation'
                   }
                 </small>
@@ -361,20 +367,69 @@ function MesoPlans() {
                   <option value="12">12 Wochen</option>
                 </select>
                 <small style={{ color: '#666', display: 'block', marginTop: '0.25rem' }}>
-                  Es werden {generateData.weeks * 3} Trainingseinheiten generiert (3 pro Woche: Mo, Mi, Fr)
+                  Es werden {generateData.weeks * (generateData.methodology === 'vangaal' ? generateData.training_days.length : 3)} Trainingseinheiten generiert 
+                  ({generateData.methodology === 'vangaal' ? `${generateData.training_days.length} pro Woche: ${generateData.training_days.join(', ')}` : '3 pro Woche: Mo, Mi, Fr'})
                 </small>
               </div>
 
+              {generateData.methodology === 'vangaal' && (
+                <div className="form-group">
+                  <label>Trainingstage * (Van Gaal)</label>
+                  <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                    {['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'].map(day => (
+                      <label key={day} style={{ display: 'block', marginBottom: '0.5rem' }}>
+                        <input
+                          type="checkbox"
+                          checked={generateData.training_days.includes(day)}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setGenerateData(prev => ({
+                              ...prev,
+                              training_days: checked 
+                                ? [...prev.training_days, day]
+                                : prev.training_days.filter(d => d !== day)
+                            }));
+                          }}
+                          style={{ marginRight: '0.5rem' }}
+                        />
+                        {day}
+                      </label>
+                    ))}
+                  </div>
+                  <small style={{ color: '#666', display: 'block', marginTop: '0.5rem' }}>
+                    🎯 Default: <strong>Dienstag</strong> (Wiederholung aller Spielphasen), 
+                    <strong> Donnerstag</strong> (Defensive Spielphasen), 
+                    <strong> Freitag</strong> (Offensive Spielphasen)
+                  </small>
+                </div>
+              )}
+
               <div style={{ 
-                background: generateData.methodology === 'verheijen' ? '#fff8e6' : '#f0f8ff', 
-                border: `1px solid ${generateData.methodology === 'verheijen' ? '#ff9800' : '#1e3c72'}`, 
+                background: generateData.methodology === 'vangaal' ? '#e8f5e9' : (generateData.methodology === 'verheijen' ? '#fff8e6' : '#f0f8ff'), 
+                border: `1px solid ${generateData.methodology === 'vangaal' ? '#4CAF50' : (generateData.methodology === 'verheijen' ? '#ff9800' : '#1e3c72')}`, 
                 borderRadius: '4px', 
                 padding: '1rem', 
                 marginBottom: '1rem' 
               }}>
-                <strong>{generateData.methodology === 'verheijen' ? '🇳🇱 Verheijen-Methodik' : '🔬 Wissenschaftliche Grundlagen'}</strong>
+                <strong>
+                  {generateData.methodology === 'vangaal' 
+                    ? '⚽ Van Gaal Taktiksystem' 
+                    : (generateData.methodology === 'verheijen' ? '🇳🇱 Verheijen-Methodik' : '🔬 Wissenschaftliche Grundlagen')
+                  }
+                </strong>
                 <ul style={{ marginTop: '0.5rem', marginBottom: 0, paddingLeft: '1.5rem', fontSize: '0.9rem' }}>
-                  {generateData.methodology === 'verheijen' ? (
+                  {generateData.methodology === 'vangaal' ? (
+                    <>
+                      <li><strong>4 Spielphasen:</strong> Ballbesitz, Umschalten offensiv, Ballverlust, Umschalten defensiv</li>
+                      <li><strong>Spielprinzipien:</strong> Raumaufteilung, Gegenpressing, Kompaktheit, Schnelles Umschalten</li>
+                      <li><strong>Tagesspezifische Schwerpunkte:</strong></li>
+                      <li style={{ paddingLeft: '1rem' }}>🔄 <strong>Dienstag (Default):</strong> Wiederholung aller Spielphasen und -prinzipien</li>
+                      <li style={{ paddingLeft: '1rem' }}>🛡️ <strong>Donnerstag:</strong> Defensive Spielphasen (Ballverlust + Gegenpressing)</li>
+                      <li style={{ paddingLeft: '1rem' }}>⚡ <strong>Freitag:</strong> Offensive Spielphasen (Ballbesitz + Umschalten)</li>
+                      <li><strong>{generateData.weeks * generateData.training_days.length} Trainingseinheiten</strong> ({generateData.training_days.join(', ')})</li>
+                      <li><strong>Vorgefertigte Kombinationen</strong> für jeden Wochentag mit klaren taktischen Zielen</li>
+                    </>
+                  ) : generateData.methodology === 'verheijen' ? (
                     <>
                       <li><strong>Fußballspezifität:</strong> Alle Übungen als Spielformen (z.B. 8v8, 7v7, 6v6)</li>
                       <li><strong>Varianten:</strong> Jede Trainingseinheit mit 3-4 unterschiedlichen Varianten</li>

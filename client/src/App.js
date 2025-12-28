@@ -6,6 +6,7 @@ import MesoPlans from './components/MesoPlans';
 import MicroPlans from './components/MicroPlans';
 import Individualizations from './components/Individualizations';
 import Events from './components/Events';
+import Calendar from './components/Calendar';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -24,6 +25,8 @@ function App() {
         return <Individualizations />;
       case 'events':
         return <Events />;
+      case 'calendar':
+        return <Calendar />;
       default:
         return <Dashboard />;
     }
@@ -57,6 +60,12 @@ function App() {
             onClick={() => setActiveTab('micro')}
           >
             Mikroplanung
+          </button>
+          <button 
+            className={activeTab === 'calendar' ? 'active' : ''} 
+            onClick={() => setActiveTab('calendar')}
+          >
+            📅 Kalender
           </button>
           <button 
             className={activeTab === 'individualizations' ? 'active' : ''} 
