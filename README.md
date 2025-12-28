@@ -17,6 +17,23 @@ Eine vollständige Web-Anwendung für die Trainingsplanung einer Fußballmannsch
 - Node.js (Version 14 oder höher)
 - npm
 
+### Konfiguration (Optional)
+
+Die Anwendung kann über Umgebungsvariablen konfiguriert werden:
+
+**Backend** (`.env` im Hauptverzeichnis):
+```
+PORT=5000
+CLIENT_URL=http://localhost:3000
+```
+
+**Frontend** (`client/.env`):
+```
+REACT_APP_API_URL=http://localhost:5000/api
+```
+
+Beispieldateien sind als `.env.example` vorhanden.
+
 ### Backend starten
 
 1. Installieren Sie die Abhängigkeiten:
@@ -24,7 +41,12 @@ Eine vollständige Web-Anwendung für die Trainingsplanung einer Fußballmannsch
 npm install
 ```
 
-2. Starten Sie den Backend-Server:
+2. (Optional) Kopieren Sie die Beispielkonfiguration:
+```bash
+cp .env.example .env
+```
+
+3. Starten Sie den Backend-Server:
 ```bash
 npm run server
 ```
@@ -43,7 +65,12 @@ cd client
 npm install
 ```
 
-3. Starten Sie die React-Anwendung:
+3. (Optional) Kopieren Sie die Beispielkonfiguration:
+```bash
+cp .env.example .env
+```
+
+4. Starten Sie die React-Anwendung:
 ```bash
 npm start
 ```
@@ -93,6 +120,20 @@ footiplanung/
 - `GET/POST/PUT/DELETE /api/micro-plans` - Mikropläne
 - `GET/POST/PUT/DELETE /api/individualizations` - Individualisierungen
 - `GET/POST/PUT/DELETE /api/events` - Events
+
+## Sicherheit
+
+Die Anwendung implementiert folgende Sicherheitsmaßnahmen:
+
+- **Rate Limiting**: API-Endpunkte sind auf 50 Anfragen pro 15 Minuten beschränkt
+- **CORS**: Cross-Origin-Requests sind auf konfigurierte Ursprünge beschränkt
+- **Sichere Abhängigkeiten**: Alle Pakete wurden auf bekannte Sicherheitslücken geprüft
+
+Für Produktionsumgebungen wird empfohlen:
+- HTTPS verwenden
+- Umgebungsvariablen für sensible Konfigurationen nutzen
+- Authentifizierung/Autorisierung hinzufügen
+- Regelmäßige Sicherheitsupdates durchführen
 
 ## Lizenz
 

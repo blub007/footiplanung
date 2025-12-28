@@ -1,15 +1,29 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const rateLimit = require('express-rate-limit');
 const db = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Rate limiting to prevent abuse
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // Limit each IP to 50 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+
 // Middleware
-app.use(cors());
+// Restrict CORS to specific origin in production
+const corsOptions = {
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use('/api/', limiter);
 
 // ===== PLAYERS ROUTES =====
 
