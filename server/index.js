@@ -7,6 +7,7 @@ const { generateScientificTrainingPlan } = require('./scientificPlanGenerator');
 const { generatePositionSpecificPlan } = require('./positionSpecificGenerator');
 const { generateVerheijenPlan } = require('./verheijenGenerator');
 const { generateVanGaalPlan } = require('./vanGaalGenerator');
+const { generateFromMacro, parseMacroText } = require('./macroImporter');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -530,6 +531,110 @@ app.post('/api/generate-plan', (req, res) => {
         });
     }
   );
+});
+
+// Import Macro Plan and generate Meso + Micro plans
+app.post('/api/import-macro-plan', (req, res) => {
+  const { macro_text, start_date } = req.body;
+  
+  if (!macro_text || !start_date) {
+    res.status(400).json({ error: 'macro_text and start_date are required' });
+    return;
+  }
+  
+  try {
+    // Parse the macro text
+    const parsedMacro = parseMacroText(macro_text);
+    
+    if (!parsedMacro || parsedMacro.length === 0) {
+      res.status(400).json({ error: 'Could not parse macro plan data' });
+      return;
+    }
+    
+    // Generate meso and micro plans
+    const { mesoPlans, microPlans } = generateFromMacro(parsedMacro, start_date);
+    
+    // Insert all meso plans and their corresponding micro plans
+    let completedMeso = 0;
+    let completedMicro = 0;
+    const mesoIdMap = {}; // Map meso placeholder names to actual IDs
+    
+    // Insert meso plans sequentially
+    const insertMesoPromises = mesoPlans.map((mesoPlan, index) => {
+      return new Promise((resolve, reject) => {
+        db.run(
+          'INSERT INTO meso_plans (name, start_date, end_date, focus, description) VALUES (?, ?, ?, ?, ?)',
+          [mesoPlan.name, mesoPlan.start_date, mesoPlan.end_date, mesoPlan.focus, mesoPlan.description],
+          function(err) {
+            if (err) {
+              reject(err);
+            } else {
+              completedMeso++;
+              mesoIdMap[mesoPlan.name] = this.lastID;
+              resolve(this.lastID);
+            }
+          }
+        );
+      });
+    });
+    
+    // Wait for all meso plans to be inserted
+    Promise.all(insertMesoPromises)
+      .then(() => {
+        // Now insert all micro plans with correct meso_plan_id
+        const insertMicroPromises = microPlans.map(microPlan => {
+          return new Promise((resolve, reject) => {
+            const mesoPlanId = mesoIdMap[microPlan.meso_plan_placeholder];
+            if (!mesoPlanId) {
+              reject(new Error(`Could not find meso plan ID for ${microPlan.meso_plan_placeholder}`));
+              return;
+            }
+            
+            db.run(
+              'INSERT INTO micro_plans (meso_plan_id, date, session_type, description, duration, intensity) VALUES (?, ?, ?, ?, ?, ?)',
+              [mesoPlanId, microPlan.date, microPlan.type, microPlan.description, microPlan.duration, microPlan.intensity],
+              function(err) {
+                if (err) {
+                  reject(err);
+                } else {
+                  completedMicro++;
+                  resolve(this.lastID);
+                }
+              }
+            );
+          });
+        });
+        
+        return Promise.all(insertMicroPromises);
+      })
+      .then(() => {
+        res.json({
+          success: true,
+          message: 'Macro plan imported successfully',
+          meso_plans_created: completedMeso,
+          micro_plans_created: completedMicro,
+          details: {
+            type: 'Van Gaal Macro Import',
+            methodology: 'Louis van Gaal (4 Spielphasen + Spielprinzipien)',
+            months: parsedMacro.length,
+            weeks: completedMeso,
+            training_sessions: completedMicro
+          }
+        });
+      })
+      .catch(err => {
+        res.status(500).json({ 
+          error: 'Error importing macro plan',
+          details: err.message 
+        });
+      });
+      
+  } catch (err) {
+    res.status(500).json({ 
+      error: 'Error processing macro plan',
+      details: err.message 
+    });
+  }
 });
 
 // Start server

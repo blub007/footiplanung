@@ -24,6 +24,12 @@ function MesoPlans() {
     training_days: ['Dienstag', 'Donnerstag', 'Freitag'] // Van Gaal customizable training days
   });
   const [generating, setGenerating] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importData, setImportData] = useState({
+    macro_text: '',
+    start_date: ''
+  });
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     loadMesoPlans();
@@ -132,6 +138,42 @@ function MesoPlans() {
     }
   };
 
+  const handleImportMacro = async (e) => {
+    e.preventDefault();
+    setImporting(true);
+    try {
+      const response = await axios.post(`${API_URL}/import-macro-plan`, importData);
+      alert(`✅ Macro-Plan erfolgreich importiert!\n\n${response.data.meso_plans_created} Mesopläne und ${response.data.micro_plans_created} Mikropläne wurden erstellt.`);
+      loadMesoPlans();
+      closeImportModal();
+    } catch (error) {
+      console.error('Error importing macro plan:', error);
+      alert('❌ Fehler beim Importieren des Macro-Plans: ' + (error.response?.data?.details || error.message));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const openImportModal = () => {
+    // Set default start date to next Monday
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+    const nextMonday = new Date(today);
+    nextMonday.setDate(today.getDate() + daysUntilMonday);
+    
+    setImportData({
+      macro_text: '',
+      start_date: nextMonday.toISOString().split('T')[0]
+    });
+    setShowImportModal(true);
+  };
+
+  const closeImportModal = () => {
+    setShowImportModal(false);
+    setImporting(false);
+  };
+
   const getDurationWeeks = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -147,6 +189,9 @@ function MesoPlans() {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-success" onClick={openGenerateModal}>
             ✨ Trainingsplan automatisch generieren
+          </button>
+          <button className="btn" style={{ backgroundColor: '#9b59b6', color: 'white' }} onClick={openImportModal}>
+            📊 Macro-Plan importieren
           </button>
           <button className="btn btn-primary" onClick={() => openModal()}>
             + Neuer Mesoplan
@@ -458,6 +503,89 @@ function MesoPlans() {
                 </button>
                 <button type="submit" className="btn btn-success" disabled={generating}>
                   {generating ? '⏳ Generiere...' : '✨ Trainingsplan generieren'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showImportModal && (
+        <div className="modal-overlay" onClick={closeImportModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <h3>📊 Macro-Plan importieren</h3>
+            <p style={{ marginBottom: '1rem', color: '#666', fontSize: '0.9rem' }}>
+              Importiere eine wöchentliche Macro-Planung mit Spielphasen und Spielprinzipien.
+              Automatisch werden Mesopläne (pro Woche) und Mikropläne (Dienstag, Donnerstag, Freitag) generiert.
+            </p>
+            <form onSubmit={handleImportMacro}>
+              <div className="form-group">
+                <label>Startdatum (Montag der ersten Woche) *</label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={importData.start_date}
+                  onChange={(e) => setImportData({ ...importData, start_date: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Macro-Plan Daten *</label>
+                <textarea
+                  className="form-control"
+                  rows="15"
+                  value={importData.macro_text}
+                  onChange={(e) => setImportData({ ...importData, macro_text: e.target.value })}
+                  placeholder={`Beispiel-Format:
+
+Januar
+Woche 1	Woche 2	Woche 3	Woche 4
+S1+2
+Phase 1 Eigener Ballbesitz
+Phase 2 Umschalten bei Ballverlust
+P1+9
+1: In größtmöglichen Räumen anbieten
+9: Gegenpressing oder Räume verengen
+
+Februar
+Woche 1	Woche 2
+S3+4
+Phase 3 Gegnerischer Ballbesitz
+Phase 4 Umschalten nach Ballgewinn
+P12+18
+12: Enge Abstände zueinander halten
+18: Erster Blick nach vorne
+
+...`}
+                  required
+                  style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
+                />
+                <small style={{ color: '#666', display: 'block', marginTop: '0.5rem' }}>
+                  <strong>Format:</strong> Monat → Wochennummer → Spielphasen (S1+2 oder S3+4) → Spielprinzipien (P1+9, etc.)
+                </small>
+              </div>
+
+              <div className="info-box" style={{ backgroundColor: '#e3f2fd', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+                <h4 style={{ marginTop: 0, fontSize: '1rem' }}>Van Gaal Spielphasen:</h4>
+                <ul style={{ marginBottom: 0, fontSize: '0.9rem' }}>
+                  <li><strong>S1+2:</strong> Offensive Phasen (Ballbesitz + Umschalten offensiv)</li>
+                  <li><strong>S3+4:</strong> Defensive Phasen (Ballverlust + Umschalten defensiv)</li>
+                </ul>
+                <h4 style={{ marginTop: '0.75rem', fontSize: '1rem' }}>Trainingstage:</h4>
+                <ul style={{ marginBottom: 0, fontSize: '0.9rem' }}>
+                  <li><strong>Dienstag:</strong> Haupttraining (detaillierte Arbeit an Spielphasen)</li>
+                  <li><strong>Donnerstag:</strong> Wiederholung + Intensivierung</li>
+                  <li><strong>Freitag:</strong> Spielvorbereitung</li>
+                </ul>
+              </div>
+
+              <div className="form-actions">
+                <button type="button" className="btn btn-secondary" onClick={closeImportModal} disabled={importing}>
+                  Abbrechen
+                </button>
+                <button type="submit" className="btn" style={{ backgroundColor: '#9b59b6', color: 'white' }} disabled={importing}>
+                  {importing ? '⏳ Importiere...' : '📊 Macro-Plan importieren'}
                 </button>
               </div>
             </form>
