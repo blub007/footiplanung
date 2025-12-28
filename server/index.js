@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const rateLimit = require('express-rate-limit');
 const db = require('./database');
 const { generateScientificTrainingPlan } = require('./scientificPlanGenerator');
+const { generatePositionSpecificPlan } = require('./positionSpecificGenerator');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -397,7 +398,7 @@ app.delete('/api/events/:id', (req, res) => {
 
 // Generate scientifically sound training plan (meso + micro) based on periodization principles
 app.post('/api/generate-plan', (req, res) => {
-  const { start_date, weeks, focus } = req.body;
+  const { start_date, weeks, focus, position } = req.body;
   
   if (!start_date || !weeks) {
     res.status(400).json({ error: 'start_date and weeks are required' });
@@ -409,16 +410,21 @@ app.post('/api/generate-plan', (req, res) => {
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + (weeks * 7));
 
-  // Define training plan based on scientific focus area
-  const focusAreas = focus || 'Kondition';
-  const mesoName = `${focusAreas}-Mesozyklus ${startDate.toLocaleDateString('de-DE')}`;
+  // Determine if position-specific or general focus
+  const isPositionSpecific = position && position !== 'Alle';
+  const planType = isPositionSpecific ? position : (focus || 'Kondition');
+  const mesoName = isPositionSpecific 
+    ? `${position}-Trainingsplan ${startDate.toLocaleDateString('de-DE')}`
+    : `${planType}-Mesozyklus ${startDate.toLocaleDateString('de-DE')}`;
   
   // Create meso plan with scientific description
-  const description = `Periodisierter ${weeks}-Wochen Mesozyklus nach trainingswissenschaftlichen Prinzipien: Progressive Belastungssteigerung, systematische Regenerationsphasen (Superkompensation), fokussierte ${focusAreas}-Entwicklung. Basiert auf Periodisierungsmodellen nach Bompa & Haff.`;
+  const description = isPositionSpecific
+    ? `Positionsspezifischer ${weeks}-Wochen Trainingsplan für ${position} nach trainingswissenschaftlichen Prinzipien: Progressive Belastungssteigerung, systematische Regenerationsphasen, positions-spezifische Schwerpunkte (Technik, Taktik, Athletik).`
+    : `Periodisierter ${weeks}-Wochen Mesozyklus nach trainingswissenschaftlichen Prinzipien: Progressive Belastungssteigerung, systematische Regenerationsphasen (Superkompensation), fokussierte ${planType}-Entwicklung. Basiert auf Periodisierungsmodellen nach Bompa & Haff.`;
   
   db.run(
     'INSERT INTO meso_plans (name, start_date, end_date, focus, description) VALUES (?, ?, ?, ?, ?)',
-    [mesoName, start_date, endDate.toISOString().split('T')[0], focusAreas, description],
+    [mesoName, start_date, endDate.toISOString().split('T')[0], planType, description],
     function(err) {
       if (err) {
         res.status(500).json({ error: err.message });
@@ -427,16 +433,22 @@ app.post('/api/generate-plan', (req, res) => {
 
       const mesoPlanId = this.lastID;
       
-      // Generate scientifically structured micro plans
-      generateScientificTrainingPlan(mesoPlanId, startDate, weeks, focusAreas, db)
+      // Generate position-specific or general training plan
+      const generatorPromise = isPositionSpecific
+        ? generatePositionSpecificPlan(mesoPlanId, startDate, weeks, position, db)
+        : generateScientificTrainingPlan(mesoPlanId, startDate, weeks, planType, db);
+      
+      generatorPromise
         .then(result => {
           res.json({
             meso_plan_id: mesoPlanId,
             ...result,
             details: {
+              type: isPositionSpecific ? 'Positionsspezifisch' : 'Allgemeine Periodisierung',
               periodization: 'Progressives Belastungsmodell mit Regenerationswochen',
               load_recovery_ratio: `${result.load_weeks}:${result.recovery_weeks}`,
-              focus: focusAreas,
+              focus: planType,
+              position: isPositionSpecific ? position : 'Alle Positionen',
               scientific_base: 'Trainingsprinzipien: Progressive Overload, Supercompensation, Specificity, Variation'
             }
           });

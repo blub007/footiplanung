@@ -17,7 +17,9 @@ function MesoPlans() {
   const [generateData, setGenerateData] = useState({
     start_date: '',
     weeks: 4,
-    focus: 'Kondition'
+    focus: 'Kondition',
+    position: 'Alle',
+    planType: 'general' // 'general' or 'position'
   });
   const [generating, setGenerating] = useState(false);
 
@@ -99,7 +101,9 @@ function MesoPlans() {
     setGenerateData({
       start_date: nextMonday.toISOString().split('T')[0],
       weeks: 4,
-      focus: 'Kondition'
+      focus: 'Kondition',
+      position: 'Alle',
+      planType: 'general'
     });
     setShowGenerateModal(true);
   };
@@ -252,10 +256,58 @@ function MesoPlans() {
             <p style={{ color: '#666', marginBottom: '1.5rem' }}>
               Generieren Sie einen <strong>wissenschaftlich fundierten</strong> Trainingsplan 
               basierend auf <strong>Periodisierungsprinzipien</strong> (Progressive Overload, 
-              Superkompensation). Der Plan enthält strukturierte Belastungs- und Regenerationswochen 
-              mit fokussierten Trainingseinheiten.
+              Superkompensation). Wählen Sie zwischen allgemeinem oder <strong>positionsspezifischem</strong> Training.
             </p>
             <form onSubmit={handleGenerate}>
+              <div className="form-group">
+                <label>Planungsart *</label>
+                <select
+                  value={generateData.planType}
+                  onChange={(e) => setGenerateData({ ...generateData, planType: e.target.value, position: 'Alle' })}
+                  required
+                  style={{ fontWeight: 'bold' }}
+                >
+                  <option value="general">🎯 Allgemeine Trainingsplanung (nach Schwerpunkt)</option>
+                  <option value="position">⚽ Positionsspezifische Planung (Torwart, Abwehr, Mittelfeld, Sturm)</option>
+                </select>
+              </div>
+
+              {generateData.planType === 'position' ? (
+                <div className="form-group">
+                  <label>Position *</label>
+                  <select
+                    value={generateData.position}
+                    onChange={(e) => setGenerateData({ ...generateData, position: e.target.value })}
+                    required
+                  >
+                    <option value="Alle">-- Position wählen --</option>
+                    <option value="Torwart">🧤 Torwart - Reaktion, Stellungsspiel, Spielaufbau</option>
+                    <option value="Abwehr">🛡️ Abwehr - Zweikampf, Stellungsspiel, Spielaufbau</option>
+                    <option value="Mittelfeld">⚙️ Mittelfeld - Ballkontrolle, Taktik, Ausdauer</option>
+                    <option value="Sturm">⚡ Sturm - Torschuss, Laufwege, Explosivkraft</option>
+                  </select>
+                  <small style={{ color: '#666', display: 'block', marginTop: '0.25rem' }}>
+                    Jede Position erhält spezifische Technik-, Taktik- und Athletikeinheiten
+                  </small>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label>Trainingsschwerpunkt *</label>
+                  <select
+                    value={generateData.focus}
+                    onChange={(e) => setGenerateData({ ...generateData, focus: e.target.value })}
+                    required
+                  >
+                    <option value="Kondition">Kondition - Ausdauer und Fitness</option>
+                    <option value="Technik">Technik - Ballkontrolle und Fertigkeiten</option>
+                    <option value="Taktik">Taktik - Spielaufbau und Positionsspiel</option>
+                    <option value="Kraft">Kraft - Athletik und Stabilität</option>
+                    <option value="Schnelligkeit">Schnelligkeit - Sprint und Agilität</option>
+                    <option value="Wettkampfvorbereitung">Wettkampfvorbereitung - Spielformen</option>
+                  </select>
+                </div>
+              )}
+
               <div className="form-group">
                 <label>Startdatum *</label>
                 <input
@@ -268,6 +320,7 @@ function MesoPlans() {
                   Standard: Nächster Montag
                 </small>
               </div>
+              
               <div className="form-group">
                 <label>Dauer (Wochen) *</label>
                 <select
@@ -287,21 +340,7 @@ function MesoPlans() {
                   Es werden {generateData.weeks * 3} Trainingseinheiten generiert (3 pro Woche: Mo, Mi, Fr)
                 </small>
               </div>
-              <div className="form-group">
-                <label>Trainingsschwerpunkt *</label>
-                <select
-                  value={generateData.focus}
-                  onChange={(e) => setGenerateData({ ...generateData, focus: e.target.value })}
-                  required
-                >
-                  <option value="Kondition">Kondition - Ausdauer und Fitness</option>
-                  <option value="Technik">Technik - Ballkontrolle und Fertigkeiten</option>
-                  <option value="Taktik">Taktik - Spielaufbau und Positionsspiel</option>
-                  <option value="Kraft">Kraft - Athletik und Stabilität</option>
-                  <option value="Schnelligkeit">Schnelligkeit - Sprint und Agilität</option>
-                  <option value="Wettkampfvorbereitung">Wettkampfvorbereitung - Spielformen</option>
-                </select>
-              </div>
+
               <div style={{ 
                 background: '#f0f8ff', 
                 border: '1px solid #1e3c72', 
@@ -314,8 +353,11 @@ function MesoPlans() {
                   <li><strong>Periodisierung:</strong> {generateData.weeks >= 4 ? 'Belastungs-/Regenerationswochen im 3:1 Verhältnis' : 'Strukturierte Belastungssteigerung'}</li>
                   <li><strong>Progressive Overload:</strong> Aufbau → Entwicklung → Intensivierung</li>
                   <li><strong>Superkompensation:</strong> Gezielte Regenerationsphasen für optimale Anpassung</li>
-                  <li><strong>{generateData.weeks * 3} Trainingseinheiten</strong> (Mo/Mi/Fr) fokussiert auf {generateData.focus}</li>
+                  <li><strong>{generateData.weeks * 3} Trainingseinheiten</strong> (Mo/Mi/Fr) {generateData.planType === 'position' ? `für ${generateData.position}` : `fokussiert auf ${generateData.focus}`}</li>
                   <li><strong>Variabilität:</strong> Unterschiedliche Trainingsformen und Intensitäten</li>
+                  {generateData.planType === 'position' && generateData.position !== 'Alle' && (
+                    <li><strong>Positionsspezifisch:</strong> Technik, Taktik und Athletik für {generateData.position}</li>
+                  )}
                 </ul>
               </div>
               <div className="form-actions">
